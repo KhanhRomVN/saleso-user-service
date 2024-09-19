@@ -1,16 +1,10 @@
-const {
-  UserModel,
-  OTPModel,
-  SellerAnalyticModel,
-  UserDetailModel,
-} = require("../models");
+const { UserModel, UserDetailModel } = require("../models");
 const transporter = require("../config/nodemailerConfig");
-const { CustomError } = require("../middleware/errorHandler");
 const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const logger = require("../config/logger");
-const { log } = require("console");
+const { OTPProducer } = require("../producers/otp-producer");
+const { handleRequest, createError } = require("../services/responseHandler");
 
 const generateOTP = () => crypto.randomBytes(3).toString("hex");
 const getEmailTemplate = (otp, role) => `
@@ -71,31 +65,20 @@ const getEmailTemplate = (otp, role) => `
 </html>
 `;
 
-const handleRequest = async (req, res, operation) => {
-  try {
-    const result = await operation(req);
-    res.status(200).json(result);
-  } catch (error) {
-    logger.error(`Error in ${operation.name}: ${error}`);
-    res
-      .status(error.status || 500)
-      .json({ error: error.message || "Internal Server Error" });
-  }
-};
-
 const AuthController = {
   verifyNewEmail: async (req, res) => {
     handleRequest(req, res, async (req) => {
       const { email, role } = req.body;
       const existingUser = await UserModel.getUserByEmail(email, role);
       if (existingUser) {
-        throw new CustomError(
+        throw createError(
+          `This <${email}> is linked to another account`,
           400,
-          `This <${email}> is linked to another account`
+          "EMAIL_ALREADY_EXISTS"
         );
       }
       const otp = generateOTP();
-      await OTPModel.storeOTP(email, otp, role);
+      await OTPProducer.storeOTP(email, otp, role);
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: email,
@@ -109,18 +92,19 @@ const AuthController = {
   registerUserWithOTP: async (req, res) => {
     handleRequest(req, res, async (req) => {
       const { email, otp, username, password, role } = req.body;
-      // OTP authentication
-      const validOTP = await OTPModel.verifyOTP(email, otp, role);
+      const validOTP = await OTPProducer.verifyOTP(email, otp, role);
       if (!validOTP) {
-        throw new CustomError(400, "Invalid or expired OTP");
+        throw createError("Invalid or expired OTP", 400, "INVALID_OTP");
       }
 
-      // Check if the username already exists or not
       if (await UserModel.getUserByUsername(username, role)) {
-        return { error: "This username is already in use" };
+        throw createError(
+          "This username is already in use",
+          400,
+          "USERNAME_TAKEN"
+        );
       }
 
-      // password encryption
       const hashedPassword = await bcryptjs.hash(password, 10);
       const userData = {
         username,
@@ -160,14 +144,22 @@ const AuthController = {
       const { email, password, role } = req.body;
       const existingUser = await UserModel.getUserByEmail(email, role);
       if (!existingUser) {
-        throw new CustomError(401, "This email has not been registered.");
+        throw createError(
+          "This email has not been registered.",
+          401,
+          "EMAIL_NOT_REGISTERED"
+        );
       }
       const isPasswordValid = await bcryptjs.compare(
         password,
         existingUser.password
       );
       if (!isPasswordValid) {
-        throw new CustomError(401, "This password is not valid");
+        throw createError(
+          "This password is not valid",
+          401,
+          "INVALID_PASSWORD"
+        );
       }
 
       const accessToken = jwt.sign(
@@ -199,14 +191,22 @@ const AuthController = {
       const role = req.user.role;
       const existingUser = await UserModel.getUserByEmail(email, role);
       if (!existingUser) {
-        throw new CustomError(401, "This email has not been registered.");
+        throw createError(
+          "This email has not been registered.",
+          401,
+          "EMAIL_NOT_REGISTERED"
+        );
       }
       const isPasswordValid = await bcryptjs.compare(
         password,
         existingUser.password
       );
       if (!isPasswordValid) {
-        throw new CustomError(401, "This password is not valid");
+        throw createError(
+          "This password is not valid",
+          401,
+          "INVALID_PASSWORD"
+        );
       }
       return { message: "Verify account successfully" };
     });

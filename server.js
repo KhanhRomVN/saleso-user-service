@@ -10,11 +10,14 @@ const http = require("http");
 //* MongoDB
 const { connectDB } = require("./config/mongoDB");
 
+//* RabbitMQ
+const { connectRabbitMQ } = require("./config/rabbitmq");
+
 //* Routes
 const routes = require("./routes");
 
 //* Error Handling Middleware
-const { errorHandler } = require("./middleware/errorHandler");
+const { sendError } = require("./services/responseHandler");
 
 //* CORS Configuration
 const whiteList = process.env.WHITE_LIST.split(",");
@@ -46,18 +49,23 @@ Object.entries(routes).forEach(([path, router]) => {
 });
 
 //* Error Handling Middleware
-app.use(errorHandler);
+app.use((err, res) => {
+  sendError(res, err);
+});
 
 //* Start Server
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8085;
 
-Promise.all([connectDB()])
+const { startUserInfoConsumer } = require("./consumers/user-info-consumer");
+
+Promise.all([connectDB(), connectRabbitMQ()])
   .then(() => {
     server.listen(PORT, () => {
       console.log(`Server is running on port: ${PORT}`);
     });
+    startUserInfoConsumer();
   })
   .catch((err) => {
-    console.error("Failed to connect to database", err);
+    console.error("Failed to connect to database or rabbitmq:", err);
     process.exit(1);
   });

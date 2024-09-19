@@ -13,11 +13,13 @@ const formats = {
   json: winston.format.json(),
   console: winston.format.combine(
     winston.format.colorize(),
-    winston.format.simple()
+    winston.format.printf(({ level, message, timestamp }) => {
+      return `${timestamp} [${level}] : ${message}`;
+    })
   ),
-  discord: winston.format.printf(
-    (info) => `${info.timestamp} [${info.level.toUpperCase()}]: ${info.message}`
-  ),
+  discord: winston.format.printf(({ level, message, timestamp }) => {
+    return `**[${level.toUpperCase()}]** ${timestamp}: ${message}`;
+  }),
 };
 
 const createTransport = (type, options) => {
@@ -56,7 +58,7 @@ const logger = winston.createLogger({
   format: winston.format.combine(
     formats.timestamp,
     formats.errors,
-    formats.json
+    winston.format.metadata({ fillExcept: ["message", "level", "timestamp"] })
   ),
   defaultMeta,
   transports: [

@@ -1,21 +1,11 @@
-const { UserModel, UserDetailModel, OTPModel } = require("../models");
+const { UserModel, UserDetailModel } = require("../models");
 const logger = require("../config/logger");
 const transporter = require("../config/nodemailerConfig");
 const crypto = require("crypto");
+const { handleRequest, createError } = require("../services/responseHandler");
+const { OTPProducer } = require("../producers/otp-producer");
+
 const generateOTP = () => crypto.randomBytes(3).toString("hex");
-
-const handleRequest = async (req, res, operation) => {
-  try {
-    const result = await operation(req);
-    res.status(200).json(result);
-  } catch (error) {
-    logger.error(`Error in ${operation.name}: ${error}`);
-    res
-      .status(error.status || 500)
-      .json({ error: error.message || "Internal Server Error" });
-  }
-};
-
 const getEmailTemplate = (otp, role) => `
 <!DOCTYPE html>
 <html lang="en">
@@ -115,7 +105,7 @@ const UserController = {
       const { newEmail } = req.body;
 
       const otp = generateOTP();
-      await OTPModel.storeOTP(newEmail, otp, role);
+      await OTPProducer.storeOTP(newEmail, otp, role);
 
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
@@ -137,11 +127,11 @@ const UserController = {
 
       const validOTP = await OTPModel.verifyOTP(newEmail, otp, role);
       if (!validOTP) {
-        return res.status(400).json({ error: "Invalid OTP" });
+        throw createError("Invalid OTP", 400, "INVALID_OTP");
       }
 
       await UserModel.updateUserField(user_id, { ["email"]: newEmail }, role);
-      return { message: "Update Email SuccessFull!" };
+      return { message: "Update Email Successful!" };
     });
   },
 
@@ -178,7 +168,7 @@ const UserController = {
 
       const validOTP = await OTPModel.verifyOTP(email, otp, role);
       if (!validOTP) {
-        return res.status(400).json({ error: "Invalid OTP" });
+        throw createError("Invalid OTP", 400, "INVALID_OTP");
       }
 
       await UserModel.updateForgetPassword(email, newPassword, role);

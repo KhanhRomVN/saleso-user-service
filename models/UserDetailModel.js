@@ -1,5 +1,6 @@
 const { getDB } = require("../config/mongoDB");
 const Joi = require("joi");
+const { createError } = require("../services/responseHandler");
 
 const CUSTOMER_COLLECTION_NAME = "customer_detail";
 const SELLER_COLLECTION_NAME = "seller_detail";
@@ -22,13 +23,21 @@ const SELLER_COLLECTION_SCHEMA = Joi.object({
 const getCollectionName = (role) => {
   if (role === "customer") return CUSTOMER_COLLECTION_NAME;
   if (role === "seller") return SELLER_COLLECTION_NAME;
-  throw new Error('Invalid role. Must be either "customer" or "seller".');
+  throw createError(
+    'Invalid role. Must be either "customer" or "seller".',
+    400,
+    "INVALID_ROLE"
+  );
 };
 
 const getSchema = (role) => {
   if (role === "customer") return CUSTOMER_COLLECTION_SCHEMA;
   if (role === "seller") return SELLER_COLLECTION_SCHEMA;
-  throw new Error('Invalid role. Must be either "customer" or "seller".');
+  throw createError(
+    'Invalid role. Must be either "customer" or "seller".',
+    400,
+    "INVALID_ROLE"
+  );
 };
 
 const handleDBOperation = async (operation, role) => {
@@ -38,7 +47,11 @@ const handleDBOperation = async (operation, role) => {
     return await operation(db.collection(collectionName));
   } catch (error) {
     console.error(`Error in ${operation.name}: `, error);
-    throw error;
+    throw createError(
+      `Database operation failed: ${error.message}`,
+      500,
+      "DB_OPERATION_FAILED"
+    );
   }
 };
 
@@ -51,8 +64,10 @@ const UserDetailModel = {
         abortEarly: false,
       });
       if (error) {
-        throw new Error(
-          `Validation error: ${error.details.map((d) => d.message).join(", ")}`
+        throw createError(
+          `Validation error: ${error.details.map((d) => d.message).join(", ")}`,
+          400,
+          "VALIDATION_ERROR"
         );
       }
 
@@ -62,7 +77,15 @@ const UserDetailModel = {
   getDetail: async (user_id, role) =>
     handleDBOperation(async (collection) => {
       const idField = role === "customer" ? "customer_id" : "seller_id";
-      return await collection.findOne({ [idField]: user_id });
+      const detail = await collection.findOne({ [idField]: user_id });
+      if (!detail) {
+        throw createError(
+          "User detail not found",
+          404,
+          "USER_DETAIL_NOT_FOUND"
+        );
+      }
+      return detail;
     }, role),
 
   updateDetail: async (user_id, updateData, role) =>
@@ -74,15 +97,27 @@ const UserDetailModel = {
         stripUnknown: true,
       });
       if (error) {
-        throw new Error(
-          `Validation error: ${error.details.map((d) => d.message).join(", ")}`
+        throw createError(
+          `Validation error: ${error.details.map((d) => d.message).join(", ")}`,
+          400,
+          "VALIDATION_ERROR"
         );
       }
 
-      return await collection.updateOne(
+      const result = await collection.updateOne(
         { [idField]: user_id },
         { $set: value }
       );
+
+      if (result.matchedCount === 0) {
+        throw createError(
+          "User detail not found",
+          404,
+          "USER_DETAIL_NOT_FOUND"
+        );
+      }
+
+      return result;
     }, role),
 };
 

@@ -1,1 +1,0 @@
-# saleso-user-service

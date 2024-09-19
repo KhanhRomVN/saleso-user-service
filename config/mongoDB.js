@@ -12,7 +12,7 @@ class DatabaseConnection {
     });
     this.db = null;
     this.maxRetries = 5;
-    this.retryInterval = 5000; // 5 seconds
+    this.retryInterval = 5000;
   }
 
   async connect(retries = 0) {
@@ -29,10 +29,16 @@ class DatabaseConnection {
         await new Promise((resolve) => setTimeout(resolve, this.retryInterval));
         return this.connect(retries + 1);
       } else {
-        logger.error("Max retries reached. Exiting process.");
-        process.exit(1);
+        logger.error("Max retries reached. Unable to connect to the database.");
+        throw error;
       }
     }
+  }
+
+  isConnected() {
+    return (
+      this.client && this.client.topology && this.client.topology.isConnected()
+    );
   }
 
   getDB() {
@@ -50,8 +56,13 @@ class DatabaseConnection {
   }
 
   async close() {
-    if (this.client) {
+    if (
+      this.client &&
+      this.client.topology &&
+      this.client.topology.isConnected()
+    ) {
       await this.client.close();
+      this.db = null;
       logger.info("Database connection closed");
     }
   }
@@ -72,4 +83,5 @@ module.exports = {
   getClient: () => dbConnection.getClient(),
   closeDB: () => dbConnection.close(),
   startSession: () => dbConnection.startSession(),
+  isConnected: () => dbConnection.isConnected(),
 };

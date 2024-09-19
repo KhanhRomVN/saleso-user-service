@@ -3,9 +3,11 @@ const Joi = require("joi");
 const { ObjectId } = require("mongodb");
 const bcrypt = require("bcrypt");
 const saltRounds = 10;
+const cron = require("node-cron");
+const { createError } = require("../services/responseHandler");
 
 const COLLECTION_SCHEMA = Joi.object({
-  username: Joi.string().optional(),  
+  username: Joi.string().optional(),
   email: Joi.string().email().required(),
   password: Joi.string().required(),
   register_at: Joi.date().default(() => new Date()),
@@ -21,7 +23,11 @@ const handleDBOperation = async (operation, role) => {
     return await operation(db.collection(role));
   } catch (error) {
     console.error(`Error in ${operation.name}: `, error);
-    throw error;
+    throw createError(
+      `Database operation failed: ${error.message}`,
+      500,
+      "DB_OPERATION_FAILED"
+    );
   }
 };
 
@@ -32,8 +38,10 @@ const UserModel = {
         abortEarly: false,
       });
       if (error) {
-        throw new Error(
-          `Validation error: ${error.details.map((d) => d.message).join(", ")}`
+        throw createError(
+          `Validation error: ${error.details.map((d) => d.message).join(", ")}`,
+          400,
+          "VALIDATION_ERROR"
         );
       }
       value.password = await bcrypt.hash(value.password, saltRounds);
@@ -44,77 +52,117 @@ const UserModel = {
 
   confirmEmail: async (email, role) => {
     return handleDBOperation(async (collection) => {
-      return await collection.updateOne(
+      const result = await collection.updateOne(
         { email },
         { $set: { emailConfirmed: true } }
       );
+      if (result.matchedCount === 0) {
+        throw createError("User not found", 404, "USER_NOT_FOUND");
+      }
+      return result;
     }, role);
   },
 
   getUserById: async (user_id, role) => {
     return handleDBOperation(async (collection) => {
-      return await collection.findOne({ _id: new ObjectId(user_id) });
+      const user = await collection.findOne({ _id: new ObjectId(user_id) });
+      if (!user) {
+        throw createError("User not found", 404, "USER_NOT_FOUND");
+      }
+      return user;
     }, role);
   },
 
   getUserByUsername: async (username, role) => {
     return handleDBOperation(async (collection) => {
-      return await collection.findOne({ username });
+      const user = await collection.findOne({ username });
+      if (!user) {
+        throw createError("User not found", 404, "USER_NOT_FOUND");
+      }
+      return user;
     }, role);
   },
 
   getUserByEmail: async (email, role) => {
     return handleDBOperation(async (collection) => {
-      return await collection.findOne({ email });
+      const user = await collection.findOne({ email });
+      if (!user) {
+        throw createError("User not found", 404, "USER_NOT_FOUND");
+      }
+      return user;
     }, role);
   },
 
   updateUsername: async (user_id, username, role) => {
     return handleDBOperation(async (collection) => {
-      return await collection.updateOne(
+      const result = await collection.updateOne(
         { _id: new ObjectId(user_id) },
         { $set: { username }, $currentDate: { update_at: true } }
       );
+      if (result.matchedCount === 0) {
+        throw createError("User not found", 404, "USER_NOT_FOUND");
+      }
+      return result;
     }, role);
   },
 
   updatePassword: async (user_id, newPassword, role) => {
     return handleDBOperation(async (collection) => {
       const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-      return await collection.updateOne(
+      const result = await collection.updateOne(
         { _id: new ObjectId(user_id) },
         { $set: { password: hashedNewPassword } }
       );
+      if (result.matchedCount === 0) {
+        throw createError("User not found", 404, "USER_NOT_FOUND");
+      }
+      return result;
     }, role);
   },
 
   updateForgetPassword: async (email, newPassword, role) => {
     return handleDBOperation(async (collection) => {
       const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-      return await collection.updateOne(
+      const result = await collection.updateOne(
         { email: email },
         { $set: { password: hashedNewPassword } }
       );
+      if (result.matchedCount === 0) {
+        throw createError("User not found", 404, "USER_NOT_FOUND");
+      }
+      return result;
     }, role);
   },
 
   updateUserField: async (user_id, updateData, role) => {
     return handleDBOperation(async (collection) => {
-      return await collection.updateOne(
+      const result = await collection.updateOne(
         { _id: new ObjectId(user_id) },
         { $set: updateData, $currentDate: { update_at: true } }
       );
+      if (result.matchedCount === 0) {
+        throw createError("User not found", 404, "USER_NOT_FOUND");
+      }
+      return result;
     }, role);
   },
 
   updateRefreshToken: async (user_id, refreshToken, role) => {
     return handleDBOperation(async (collection) => {
-      return await collection.updateOne(
+      const result = await collection.updateOne(
         { _id: new ObjectId(user_id) },
         { $set: { refreshToken }, $currentDate: { last_login: true } }
       );
+      if (result.matchedCount === 0) {
+        throw createError("User not found", 404, "USER_NOT_FOUND");
+      }
+      return result;
     }, role);
   },
 };
+
+cron.schedule("* * * * *", () => {
+  console.log("[User-service] - Node-cron has started!");
+});
 
 module.exports = UserModel;
