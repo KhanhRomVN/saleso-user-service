@@ -1,9 +1,8 @@
-const { UserModel, UserDetailModel } = require("../models");
+const { UserModel, UserDetailModel, OTPModel } = require("../models");
 const logger = require("../config/logger");
 const transporter = require("../config/nodemailerConfig");
 const crypto = require("crypto");
 const { handleRequest, createError } = require("../services/responseHandler");
-const { OTPProducer } = require("../producers/otp-producer");
 
 const generateOTP = () => crypto.randomBytes(3).toString("hex");
 const getEmailTemplate = (otp, role) => `
@@ -99,13 +98,13 @@ const UserController = {
     });
   },
 
-  verifyNewEmail: async (req, res) => {
+  newEmail: async (req, res) => {
     handleRequest(req, res, async (req) => {
       const role = req.user.role;
       const { newEmail } = req.body;
 
       const otp = generateOTP();
-      await OTPProducer.storeOTP(newEmail, otp, role);
+      await OTPModel.storeOTP(newEmail, otp, role);
 
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
@@ -147,8 +146,11 @@ const UserController = {
 
   forgetPassword: async (req, res) => {
     handleRequest(req, res, async (req) => {
-      const { email, role } = req.body;
+      console.log("req.user");
+      const { email } = req.body;
+      const role = req.user.role;
       const otp = generateOTP();
+      console.log(email, otp, role);
       await OTPModel.storeOTP(email, otp, role);
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
@@ -164,7 +166,8 @@ const UserController = {
 
   updateForgetPassword: async (req, res) => {
     handleRequest(req, res, async (req) => {
-      const { email, otp, newPassword, role } = req.body;
+      const { email, otp, newPassword } = req.body;
+      const role = req.user.role;
 
       const validOTP = await OTPModel.verifyOTP(email, otp, role);
       if (!validOTP) {

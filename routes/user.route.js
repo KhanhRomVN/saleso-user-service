@@ -1,9 +1,5 @@
 const express = require("express");
-const {
-  authToken,
-  authCustomerToken,
-  authSellerToken,
-} = require("../middleware/authToken");
+const { authToken } = require("../middleware/authToken");
 const { UserController } = require("../controllers");
 const router = express.Router();
 
@@ -34,6 +30,12 @@ const routes = [
   },
   {
     method: "put",
+    path: "/new-email",
+    middleware: [authToken],
+    handler: UserController.newEmail,
+  },
+  {
+    method: "put",
     path: "/update/new-email",
     middleware: [authToken],
     handler: UserController.updateEmail,
@@ -47,14 +49,16 @@ const routes = [
   },
   // In case you forget your password, an OTP will be sent to your email
   {
-    method: "post",
+    method: "put",
     path: "/forget/password",
+    middleware: [authToken],
     handler: UserController.forgetPassword,
   },
   // Update forgotten password with OTP and new password
   {
-    method: "post",
+    method: "put",
     path: "/update/forget-password",
+    middleware: [authToken],
     handler: UserController.updateForgetPassword,
   },
 ];

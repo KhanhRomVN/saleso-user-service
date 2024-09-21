@@ -73,6 +73,7 @@ const refreshAccessToken = async (req, res, next) => {
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
     };
+    req.user = user; // Thêm thông tin user vào request
     next();
   } catch (error) {
     console.error("Error in refreshAccessToken:", error);

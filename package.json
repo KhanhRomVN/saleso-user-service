@@ -1,5 +1,5 @@
 {
-  "name": "salesoBE",
+  "name": "saleso-user-service",
   "version": "2.5.7",
   "description": "Saleso Shopping And Social Media Project Backend Using Nodejs, MongoDB, Express",
   "main": "server.js",
@@ -8,7 +8,12 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "format": "prettier --write .",
-    "lint": "eslint . --fix"
+    "lint": "eslint . --fix",
+    "pm2:start": "pm2 start server.js --name salesoBE",
+    "pm2:stop": "pm2 stop salesoBE",
+    "pm2:restart": "pm2 restart salesoBE",
+    "pm2:delete": "pm2 delete salesoBE",
+    "pm2:logs": "pm2 logs salesoBE"
   },
   "keywords": [],
   "author": "KhanhRomVN",
@@ -36,6 +41,8 @@
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.14",
     "otp-generator": "^4.0.1",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
     "react-easy-crop": "^5.0.8",
     "redis": "^4.7.0",
     "request-ip": "^3.3.0",

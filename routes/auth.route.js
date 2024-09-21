@@ -1,9 +1,6 @@
 const express = require("express");
 const { AuthController } = require("../controllers");
-const {
-  authToken,
-  refreshAccessToken,
-} = require("../middleware/authToken");
+const { authToken, refreshAccessToken } = require("../middleware/authToken");
 const router = express.Router();
 
 const routes = [

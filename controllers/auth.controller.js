@@ -1,9 +1,9 @@
 const { UserModel, UserDetailModel } = require("../models");
+const { storeOTP, verifyOTP } = require("../queue/producers/otp-producer");
 const transporter = require("../config/nodemailerConfig");
 const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const { OTPProducer } = require("../producers/otp-producer");
 const { handleRequest, createError } = require("../services/responseHandler");
 
 const generateOTP = () => crypto.randomBytes(3).toString("hex");
@@ -78,7 +78,7 @@ const AuthController = {
         );
       }
       const otp = generateOTP();
-      await OTPProducer.storeOTP(email, otp, role);
+      await storeOTP(email, otp, role);
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: email,
@@ -92,7 +92,7 @@ const AuthController = {
   registerUserWithOTP: async (req, res) => {
     handleRequest(req, res, async (req) => {
       const { email, otp, username, password, role } = req.body;
-      const validOTP = await OTPProducer.verifyOTP(email, otp, role);
+      const validOTP = await verifyOTP(email, otp, role);
       if (!validOTP) {
         throw createError("Invalid or expired OTP", 400, "INVALID_OTP");
       }
@@ -215,7 +215,82 @@ const AuthController = {
   refreshAccessToken: async (req, res) => {
     handleRequest(req, res, async (req) => {
       const { accessToken, refreshToken } = req.token;
-      return { newAccessToken: accessToken, newRefreshToken: refreshToken };
+      const user = await UserModel.getUserById(req.user.user_id, req.user.role);
+
+      // Thêm thông tin người dùng vào response
+      return {
+        newAccessToken: accessToken,
+        newRefreshToken: refreshToken,
+        user: {
+          user_id: user._id,
+          username: user.username,
+          role: user.role,
+        },
+      };
+    });
+  },
+
+  handleGoogleAuth: async (accessToken, refreshToken, profile, done) => {
+    try {
+      const { id, emails, displayName } = profile;
+      const email = emails[0].value;
+      const role = "customer"; // Mặc định là customer, có thể thay đổi nếu cần
+
+      let user = await UserModel.getUserByEmail(email, role);
+
+      if (!user) {
+        // Nếu chưa tồn tại, tạo người dùng mới
+        const userData = {
+          username: displayName,
+          email: email,
+          password: id, // Sử dụng Google ID làm mật khẩu tạm thời
+          role: role,
+        };
+        const userId = await UserModel.registerUser(userData, role);
+        user = await UserModel.getUserById(userId, role);
+
+        // Tạo user detail
+        const detailData = {
+          customer_id: user._id.toString(),
+          avatar_uri: profile.photos[0].value,
+          name: displayName,
+          address: [],
+          age: null,
+        };
+        await UserDetailModel.newDetail(detailData, role);
+      }
+
+      done(null, user);
+    } catch (error) {
+      done(error, null);
+    }
+  },
+
+  handleGoogleAuthCallback: async (req, res) => {
+    handleRequest(req, res, async (req) => {
+      const user = req.user;
+      const accessToken = jwt.sign(
+        { user_id: user._id, role: user.role },
+        process.env.JWT_SECRET_KEY,
+        { expiresIn: "1d" }
+      );
+      const refreshToken = jwt.sign(
+        { user_id: user._id, role: user.role },
+        process.env.JWT_SECRET_KEY,
+        { expiresIn: "7d" }
+      );
+      await UserModel.updateRefreshToken(user._id, refreshToken, user.role);
+
+      const currentUser = {
+        user_id: user._id,
+        username: user.username,
+        role: user.role,
+      };
+
+      // Chuyển hướng người dùng về trang chủ với token
+      res.redirect(
+        `/login-success?accessToken=${accessToken}&refreshToken=${refreshToken}&user=${JSON.stringify(currentUser)}`
+      );
     });
   },
 };

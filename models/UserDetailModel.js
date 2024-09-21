@@ -7,16 +7,30 @@ const SELLER_COLLECTION_NAME = "seller_detail";
 
 const CUSTOMER_COLLECTION_SCHEMA = Joi.object({
   customer_id: Joi.string().required(),
-  avatar_uri: Joi.string(),
+  avatar: Joi.string(),
   name: Joi.string().required(),
-  address: Joi.array().items(Joi.string()),
-  age: Joi.number().required(),
+  address: Joi.array().items(
+    Joi.object({
+      country: Joi.string().required(),
+      address: Joi.string().required(),
+    })
+  ),
+  birthdate: Joi.object({
+    day: Joi.number().required(),
+    month: Joi.number().required(),
+    year: Joi.number().required(),
+  }).required(),
 }).options({ abortEarly: false });
 
 const SELLER_COLLECTION_SCHEMA = Joi.object({
   seller_id: Joi.string().required(),
-  avatar_uri: Joi.string(),
-  address: Joi.array().items(Joi.string()).required(),
+  avatar: Joi.string(),
+  address: Joi.array().items(
+    Joi.object({
+      country: Joi.string().required(),
+      address: Joi.string().required(),
+    })
+  ),
   categories: Joi.array().items(Joi.string()).required(),
 }).options({ abortEarly: false });
 
@@ -91,22 +105,9 @@ const UserDetailModel = {
   updateDetail: async (user_id, updateData, role) =>
     handleDBOperation(async (collection) => {
       const idField = role === "customer" ? "customer_id" : "seller_id";
-      const schema = getSchema(role);
-      const { error, value } = schema.validate(updateData, {
-        abortEarly: false,
-        stripUnknown: true,
-      });
-      if (error) {
-        throw createError(
-          `Validation error: ${error.details.map((d) => d.message).join(", ")}`,
-          400,
-          "VALIDATION_ERROR"
-        );
-      }
-
       const result = await collection.updateOne(
         { [idField]: user_id },
-        { $set: value }
+        { $set: updateData }
       );
 
       if (result.matchedCount === 0) {
