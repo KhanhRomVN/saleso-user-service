@@ -44,7 +44,6 @@ const UserModel = {
           "VALIDATION_ERROR"
         );
       }
-      value.password = await bcrypt.hash(value.password, saltRounds);
       const user = await collection.insertOne(value);
       return user.insertedId;
     }, role);
@@ -76,20 +75,13 @@ const UserModel = {
   getUserByUsername: async (username, role) => {
     return handleDBOperation(async (collection) => {
       const user = await collection.findOne({ username });
-      if (!user) {
-        throw createError("User not found", 404, "USER_NOT_FOUND");
-      }
       return user;
     }, role);
   },
 
   getUserByEmail: async (email, role) => {
     return handleDBOperation(async (collection) => {
-      const user = await collection.findOne({ email });
-      if (!user) {
-        throw createError("User not found", 404, "USER_NOT_FOUND");
-      }
-      return user;
+      return await collection.findOne({ email });
     }, role);
   },
 

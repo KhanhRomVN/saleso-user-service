@@ -7,19 +7,23 @@ const SELLER_COLLECTION_NAME = "seller_detail";
 
 const CUSTOMER_COLLECTION_SCHEMA = Joi.object({
   customer_id: Joi.string().required(),
-  avatar: Joi.string(),
-  name: Joi.string().required(),
-  address: Joi.array().items(
-    Joi.object({
-      country: Joi.string().required(),
-      address: Joi.string().required(),
-    })
-  ),
+  avatar: Joi.string().allow(""),
+  name: Joi.string().required().allow(""),
+  address: Joi.array()
+    .items(
+      Joi.object({
+        country: Joi.string().required(),
+        address: Joi.string().required(),
+      })
+    )
+    .allow(null),
   birthdate: Joi.object({
     day: Joi.number().required(),
     month: Joi.number().required(),
     year: Joi.number().required(),
-  }).required(),
+  })
+    .required()
+    .allow(null),
 }).options({ abortEarly: false });
 
 const SELLER_COLLECTION_SCHEMA = Joi.object({

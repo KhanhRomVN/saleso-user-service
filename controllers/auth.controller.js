@@ -1,5 +1,11 @@
 const { UserModel, UserDetailModel } = require("../models");
 const { storeOTP, verifyOTP } = require("../queue/producers/otp-producer");
+const {
+  sendNewNotificationPreference,
+} = require("../queue/producers/notification-preference-producer");
+const {
+  sendCreateNewNotification,
+} = require("../queue/producers/notification-producer");
 const transporter = require("../config/nodemailerConfig");
 const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -117,16 +123,33 @@ const AuthController = {
       const user = await UserModel.registerUser(userData, role);
       if (role === "customer") {
         const customer = await UserModel.getUserByEmail(email, role);
+        // Create customer detail
         const detailData = {
           customer_id: customer._id.toString(),
-          avatar_uri: "",
+          avatar: "",
           name: "",
-          address: [],
-          age: null,
+          address: null,
+          birthdate: null,
         };
         await UserDetailModel.newDetail(detailData, role);
+        // Create customer notification
+        await sendNewNotificationPreference(customer._id.toString(), role);
+        // Create customer notification
+        const notificationData = {
+          title: "Welcome to Saleso",
+          content: "You have successfully registered an account",
+          notification_type: "account_notification",
+          target_type: "individual",
+          target_ids: [customer._id.toString()],
+          can_delete: false,
+          can_mark_as_read: false,
+          is_read: false,
+          created_at: new Date(),
+        };
+        await sendCreateNewNotification(notificationData);
       } else {
         const seller = await UserModel.getUserByEmail(email, role);
+        // Create seller detail
         const detailData = {
           seller_id: seller._id.toString(),
           avatar_uri: "",
@@ -134,6 +157,21 @@ const AuthController = {
           categories: [],
         };
         await UserDetailModel.newDetail(detailData, role);
+        // Create seller notification preferences
+        await sendNewNotificationPreference(seller._id.toString(), role);
+        // Create seller notification
+        const notificationData = {
+          title: "Welcome to Saleso",
+          content: "You have successfully registered an account",
+          notification_type: "account_notification",
+          target_type: "individual",
+          target_ids: [seller._id.toString()],
+          can_delete: false,
+          can_mark_as_read: false,
+          is_read: false,
+          created_at: new Date(),
+        };
+        await sendCreateNewNotification(notificationData);
       }
       return { message: "User registered successfully", user_id: user };
     });

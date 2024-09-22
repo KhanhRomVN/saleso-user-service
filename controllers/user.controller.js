@@ -130,6 +130,19 @@ const UserController = {
       }
 
       await UserModel.updateUserField(user_id, { ["email"]: newEmail }, role);
+      // create notification
+      const notificationData = {
+        title: "New Email OTP",
+        content: `Your OTP code is: ${otp}`,
+        notification_type: "account_notification",
+        target_type: "individual",
+        target_ids: [req.user._id.toString()],
+        can_delete: false,
+        can_mark_as_read: false,
+        is_read: false,
+        created_at: new Date(),
+      };
+      await sendCreateNewNotification(notificationData);
       return { message: "Update Email Successful!" };
     });
   },
@@ -140,6 +153,19 @@ const UserController = {
       const { newPassword } = req.body;
       const user_id = req.user._id.toString();
       await UserModel.updatePassword(user_id, newPassword, role);
+      // create notification
+      const notificationData = {
+        title: "Password Updated",
+        content: `Your password has been updated successfully!`,
+        notification_type: "account_notification",
+        target_type: "individual",
+        target_ids: [req.user._id.toString()],
+        can_delete: false,
+        can_mark_as_read: false,
+        is_read: false,
+        created_at: new Date(),
+      };
+      await sendCreateNewNotification(notificationData);
       return { message: "Password updated successfully!" };
     });
   },
@@ -175,6 +201,21 @@ const UserController = {
       }
 
       await UserModel.updateForgetPassword(email, newPassword, role);
+
+      // create notification
+      const notificationData = {
+        title: "Password Reset",
+        content: `Your password has been reset successfully!`,
+        notification_type: "account_notification",
+        target_type: "individual",
+        target_ids: [req.user._id.toString()],
+        can_delete: false,
+        can_mark_as_read: false,
+        is_read: false,
+        created_at: new Date(),
+      };
+      await sendCreateNewNotification(notificationData);
+
       return { message: "Password reset successfully" };
     });
   },
