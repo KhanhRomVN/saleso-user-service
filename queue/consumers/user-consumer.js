@@ -10,11 +10,9 @@ const startGetUserByIdConsumer = async () => {
     const queue = "get_user_by_id_queue";
 
     await channel.assertQueue(queue, { durable: false });
-    console.log(`[User Service] Waiting for messages in ${queue}`);
 
     channel.consume(queue, async (msg) => {
       const { userId, role } = JSON.parse(msg.content.toString());
-      console.log("Received request for userId:", userId, "role:", role);
 
       try {
         const user = await UserModel.getUserById(userId, role);

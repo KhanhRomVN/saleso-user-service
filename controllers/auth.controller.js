@@ -203,12 +203,12 @@ const AuthController = {
       const accessToken = jwt.sign(
         { user_id: existingUser._id, role },
         process.env.JWT_SECRET_KEY,
-        { expiresIn: "1d" }
+        { expiresIn: "7d" }
       );
       const refreshToken = jwt.sign(
         { user_id: existingUser._id, role },
         process.env.JWT_SECRET_KEY,
-        { expiresIn: "7d" }
+        { expiresIn: "30d" }
       );
       await UserModel.updateRefreshToken(existingUser._id, refreshToken, role);
 

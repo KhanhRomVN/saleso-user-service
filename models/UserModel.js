@@ -153,8 +153,6 @@ const UserModel = {
   },
 };
 
-cron.schedule("* * * * *", () => {
-  console.log("[User-service] - Node-cron has started!");
-});
+cron.schedule("* * * * *", () => {});
 
 module.exports = UserModel;

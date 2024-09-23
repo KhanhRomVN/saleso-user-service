@@ -172,11 +172,9 @@ const UserController = {
 
   forgetPassword: async (req, res) => {
     handleRequest(req, res, async (req) => {
-      console.log("req.user");
       const { email } = req.body;
       const role = req.user.role;
       const otp = generateOTP();
-      console.log(email, otp, role);
       await OTPModel.storeOTP(email, otp, role);
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
