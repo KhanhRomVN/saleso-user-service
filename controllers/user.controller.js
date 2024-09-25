@@ -80,6 +80,14 @@ const UserController = {
     });
   },
 
+  getAddress: async (req, res) => {
+    handleRequest(req, res, async (req) => {
+      const user_id = req.user._id.toString();
+      const role = req.user.role;
+      return await UserDetailModel.getAddress(user_id, role);
+    });
+  },
+
   updateUsername: async (req, res) => {
     handleRequest(req, res, async (req) => {
       const { username, role } = req.body;

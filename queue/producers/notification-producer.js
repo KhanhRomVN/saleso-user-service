@@ -16,10 +16,6 @@ async function sendCreateNewNotification(notificationData) {
       persistent: true,
     });
 
-    console.log(
-      `Sent create notification request for notification: ${notificationData.title}`
-    );
-
     await channel.close();
   } catch (error) {
     console.error("Error in sendCreateNotification:", error);

@@ -17,6 +17,12 @@ const routes = [
     handler: UserController.getDetail,
   },
   {
+    method: "get",
+    path: "/user-address",
+    middleware: [authToken],
+    handler: UserController.getAddress,
+  },
+  {
     method: "put",
     path: "/update/username",
     middleware: [authToken],

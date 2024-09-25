@@ -14,11 +14,7 @@ const createAuthMiddleware = (roles) => async (req, res, next) => {
     const accessToken = req.header("accessToken");
     const decoded = verifyToken(accessToken);
 
-    let user = null;
-    for (const role of roles) {
-      user = await UserModel.getUserById(decoded.user_id, role);
-      if (user) break;
-    }
+    const user = await UserModel.getUserById(decoded.user_id, decoded.role);
 
     if (!user) {
       throw createError("User not found", 404, "USER_NOT_FOUND");

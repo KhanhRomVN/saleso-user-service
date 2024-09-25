@@ -95,6 +95,7 @@ const UserDetailModel = {
   getDetail: async (user_id, role) =>
     handleDBOperation(async (collection) => {
       const idField = role === "customer" ? "customer_id" : "seller_id";
+      console.log(idField);
       const detail = await collection.findOne({ [idField]: user_id });
       if (!detail) {
         throw createError(
@@ -103,7 +104,29 @@ const UserDetailModel = {
           "USER_DETAIL_NOT_FOUND"
         );
       }
+
+      if (detail === null) {
+        return [];
+      }
       return detail;
+    }, role),
+
+  getAddress: async (user_id, role) =>
+    handleDBOperation(async (collection) => {
+      const idField = role === "customer" ? "customer_id" : "seller_id";
+      const detail = await collection.findOne({ [idField]: user_id });
+      if (!detail) {
+        throw createError(
+          "User address not found",
+          404,
+          "USER_ADDRESS_NOT_FOUND"
+        );
+      }
+
+      if (detail.address === null) {
+        return [];
+      }
+      return detail.address;
     }, role),
 
   updateDetail: async (user_id, updateData, role) =>
